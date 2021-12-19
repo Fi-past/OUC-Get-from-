@@ -1,3 +1,4 @@
+from selenium import webdriver
 from selenium.webdriver import Chrome
 from selenium.webdriver.common.keys import Keys
 import json
@@ -5,7 +6,11 @@ import time
 import collections
 import re
 
-driver = Chrome('./chromedriver_win32/chromedriver.exe')
+
+options=webdriver.ChromeOptions()
+options.add_argument('--ignore-certificate-errors')
+driver=webdriver.Chrome('./chromedriver_win32/chromedriver.exe',chrome_options=options)
+# driver = Chrome('./chromedriver_win32/chromedriver.exe')
 driver.maximize_window()
 
 
@@ -20,9 +25,14 @@ def GetCookie(URL):
         fileObject.write(jsonCookies) 
 
 def clickAndSleep(driver,str):
-    time.sleep(0.8)
-    driver.find_element_by_xpath(str).click()
-    time.sleep(0.3)
+    try:
+        time.sleep(1)
+        driver.find_element_by_xpath(str).click()
+        time.sleep(0.5)
+    except:
+        # 处理函数内部异常，使之一定会保存下
+        print('Error')
+        raise Exception('Error!')
 
 
 def getQuestion(URL,counts,driver):
@@ -33,7 +43,7 @@ def getQuestion(URL,counts,driver):
     re_MessagesList=[]
     re_AnswersList=[]
 
-    time.sleep(1.5)
+    time.sleep(3)
     div_list=driver.find_elements_by_xpath('//*[@id="dataCollectionContainer"]/div[@class="takeQuestionDiv "]')
 
     for div in div_list:
@@ -59,6 +69,7 @@ def getQuestion(URL,counts,driver):
 
 
 def GetDatas(URL,counts):
+
     time_start=time.time()
     titleSets=set()
     set_counts=0
@@ -67,30 +78,31 @@ def GetDatas(URL,counts):
     # 默认字典，作为分类用
     classify_dict=collections.defaultdict(list)
 
+    driver.get(URL)
+    with open('./Cookie/bb_mg.json', encoding='UTF-8') as f:
+        bbJson = json.load(f)
+        for j in bbJson:
+            driver.add_cookie(j)
 
-    with open('./res/topicMessage.txt',mode='w',encoding='utf-8') as f_result:
+    time.sleep(3)
+    driver.get(URL)
+
+    for iterator in range(counts):
+        MessagesListReal=[]
+        AnswersListReal=[]
+
         driver.get(URL)
-        with open('./Cookie/bb_mg.json', encoding='UTF-8') as f:
-            bbJson = json.load(f)
-            for j in bbJson:
-                driver.add_cookie(j)
+        time.sleep(3)
+        # clickAndSleep(driver,'//*[@id="bottom_submitButtonRow"]/input[2]')
+        # //*[@id="bottom_submitButtonRow"]/input[2]
+        # 处理第二次爬取的问题
 
-        driver.get(URL)
-
-        for iterator in range(counts):
-            MessagesListReal=[]
-            AnswersListReal=[]
-
-            driver.get(URL)
-            time.sleep(1)
-            # clickAndSleep(driver,'//*[@id="bottom_submitButtonRow"]/input[2]')
-            # //*[@id="bottom_submitButtonRow"]/input[2]
-            # 处理第二次爬取的问题
+        try:
             clickAndSleep(driver,'//*[@id="containerdiv"]/div[2]/a[3]')
-            # # //*[@id="containerdiv"]/div[2]/a[3] 开始新的提交
+
+        # # //*[@id="containerdiv"]/div[2]/a[3] 开始新的提交
 
             re_MessagesList,re_AnswersList=getQuestion(URL,1000,driver)
-
 
             clickAndSleep(driver,'//*[@id="bottom_submitButtonRow"]/input[2]')
 
@@ -98,68 +110,72 @@ def GetDatas(URL,counts):
             dialog_box.accept()   #接受弹窗
 
             clickAndSleep(driver,'//*[@id="containerdiv"]/p[2]/a')
+        except:
+            print('异常,中断本次爬取,刷新并进行下一次爬取，已获取内容不受影响~')
+            continue
 
-            time.sleep(1)
-            li_list=driver.find_elements_by_xpath('//*[@id="content_listContainer"]/li')
-            for li in li_list:
-                message = li.find_element_by_xpath('./div[3]/table/tbody/tr[2]/td[2]/div').text
-                answers = li.find_elements_by_xpath('./div[3]/table/tbody/tr[3]/td/table/tbody/tr')
-                an_list=[]
-                try:
-                    for an in answers:
-                        t=an.find_element_by_xpath('./td[2]/div/span[3]/div/label').text
-                        an_list.append(str(t))
-                except:
-                    t=an.find_element_by_xpath('./td[2]/div/span[2]').text
+        time.sleep(3)
+        li_list=driver.find_elements_by_xpath('//*[@id="content_listContainer"]/li')
+        for li in li_list:
+            message = li.find_element_by_xpath('./div[3]/table/tbody/tr[2]/td[2]/div').text
+            answers = li.find_elements_by_xpath('./div[3]/table/tbody/tr[3]/td/table/tbody/tr')
+            an_list=[]
+            try:
+                for an in answers:
+                    t=an.find_element_by_xpath('./td[2]/div/span[3]/div/label').text
                     an_list.append(str(t))
+            except:
+                t=an.find_element_by_xpath('./td[2]/div/span[2]').text
+                an_list.append(str(t))
 
-                answer_str=an_list
-                MessagesListReal.append(message)
-                AnswersListReal.append(answer_str)
+            answer_str=an_list
+            MessagesListReal.append(message)
+            AnswersListReal.append(answer_str)
 
-            for i in range(len(re_AnswersList)):
-                for j in range(len(re_AnswersList[i])):
-                    if re_AnswersList[i][j] in AnswersListReal[i]:
-                        re_AnswersList[i][j]=re_AnswersList[i][j]+'-'*10
-            
-            # 【第十章】
-            
-            # if message not in titleSets:
-            for mes,ans in zip(re_MessagesList,re_AnswersList):
-                if mes not in titleSets:
-                    titleSets.add(mes)
-                    ans='\n'.join(ans)
+        for i in range(len(re_AnswersList)):
+            for j in range(len(re_AnswersList[i])):
+                if re_AnswersList[i][j] in AnswersListReal[i]:
+                    re_AnswersList[i][j]=re_AnswersList[i][j]+'-'*10
+        
+        # 【第十章】
+        
+        # if message not in titleSets:
+        for mes,ans in zip(re_MessagesList,re_AnswersList):
+            if mes not in titleSets:
+                titleSets.add(mes)
+                ans='\n'.join(ans)
 
-                    chapter=re.match('【.*】',mes)
-                    chapter=chapter.group(0)
+                chapter=re.match('【.*】',mes)
+                chapter=chapter.group(0)
 
-                    one_page_strs=''
+                one_page_strs=''
 
-                    one_page_strs+=mes+'\n'
-                    one_page_strs+=ans+'\n\n'
-                    one_page_strs+='~'*50+'\n\n'
-                    # f_result.write(mes)
-                    # f_result.write('\n')
-                    # f_result.write(ans)
-                    # f_result.write('\n\n')
-                    # f_result.write('~'*50)
-                    # f_result.write('\n\n')
+                one_page_strs+=mes+'\n'
+                one_page_strs+=ans+'\n\n'
+                one_page_strs+='~'*50+'\n\n'
+                # f_result.write(mes)
+                # f_result.write('\n')
+                # f_result.write(ans)
+                # f_result.write('\n\n')
+                # f_result.write('~'*50)
+                # f_result.write('\n\n')
 
-                    classify_dict[chapter].append(one_page_strs)
+                classify_dict[chapter].append(one_page_strs)
 
-            set_counts=len(titleSets)
-            print(f'第{iterator+1}次爬取获得题目{set_counts}个')
-            time_end=time.time()
-            print(f'总用时{time_end-time_start}s')
+        set_counts=len(titleSets)
+        print(f'第{iterator+1}次爬取获得题目{set_counts}个')
+        time_end=time.time()
+        print(f'总用时{time_end-time_start}s')
 
-            if set_counts-lastNums==0:
-                patient+=1
-                if patient>=30:
-                    break
-            else:
-                patient=0
-            
-            lastNums=set_counts
+        if set_counts-lastNums==0:
+            patient+=1
+            if patient>=30:
+                break
+        else:
+            patient=0
+        lastNums=set_counts
+
+    with open('./res/topicMessage.txt',mode='w',encoding='utf-8') as f_result:
         for k,values in classify_dict.items():
             f_result.write('\n'+'#'*50+'\n')
             f_result.write(k+'\n')
