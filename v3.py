@@ -20,8 +20,9 @@ def GetCookie(URL):
         fileObject.write(jsonCookies) 
 
 def clickAndSleep(driver,str):
-    time.sleep(0.5)
+    time.sleep(0.8)
     driver.find_element_by_xpath(str).click()
+    time.sleep(0.3)
 
 
 def getQuestion(URL,counts,driver):
@@ -73,7 +74,8 @@ def GetDatas(URL,counts):
             bbJson = json.load(f)
             for j in bbJson:
                 driver.add_cookie(j)
-        # driver.get(URL)
+
+        driver.get(URL)
 
         for iterator in range(counts):
             MessagesListReal=[]
@@ -152,7 +154,7 @@ def GetDatas(URL,counts):
 
             if set_counts-lastNums==0:
                 patient+=1
-                if patient>=15:
+                if patient>=30:
                     break
             else:
                 patient=0
@@ -168,9 +170,9 @@ def GetDatas(URL,counts):
 
 
 
-URL='https://wlkc.ouc.edu.cn/webapps/assessment/take/launch.jsp?course_assessment_id=_30305_1&course_id=_13492_1&content_id=_637509_1&step=null'
+URL='https://wlkc.ouc.edu.cn/webapps/assessment/take/launch.jsp?course_assessment_id=_30547_1&course_id=_13492_1&content_id=_641342_1&step=null'
 # GetCookie(URL)
-GetDatas(URL,1)
+GetDatas(URL,1000)
 
 
 # input()
